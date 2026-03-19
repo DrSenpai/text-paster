@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Text Paster
+
+A lightweight, cross-platform desktop application for managing and pasting text presets using customizable keyboard shortcuts. Built with [Tauri](https://tauri.app/) and [Next.js](https://nextjs.org/) for a seamless, native experience.
+
+## Features
+
+- **5 Customizable Text Presets** - Store and quickly access your frequently used text snippets
+- **Global Hotkeys** - Two hotkey modes: Numpad (1-5) or Ctrl+1-5 for instant pasting
+- **Internationalization** - Full support for German (Deutsch) and English with dynamic language switching
+- **Modern UI** - Clean, responsive interface with dark mode support
+- **Persistent Storage** - All presets and settings are automatically saved to localStorage
+- **Lightweight** - Minimal resource usage thanks to Tauri's efficient architecture
+
+## Requirements
+
+- Node.js 18+
+- npm or yarn
+- Rust 1.77.2+
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/DrSenpai/text-paster.git
+cd text-paster
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
 
 ## Getting Started
 
-First, run the development server:
+Start the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run tauri dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will open in a window at approximately 800x600 pixels. The Next.js frontend runs on `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Adding Presets
 
-## Learn More
+1. Enter your text in the preset fields (1-5)
+2. Click "Strings speichern" / "Save Strings"
+3. Your presets are automatically saved and will persist across sessions
 
-To learn more about Next.js, take a look at the following resources:
+### Using Hotkeys
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Go to Settings (gear icon)
+2. Choose your preferred hotkey mode:
+   - **Numpad 1-5**: Use Numpad1-5 to paste presets
+   - **Ctrl+1-5**: Use Ctrl+1-5 to paste presets
+3. Click "Speichern" / "Save"
+4. Use your configured hotkeys anywhere to paste presets globally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Changing Language
 
-## Deploy on Vercel
+1. Open Settings
+2. Select your preferred language (Deutsch / English)
+3. The UI will update immediately
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+text-paster/
+├── src/                          # Next.js frontend
+│   ├── app/
+│   │   ├── page.tsx             # Main application page
+│   │   ├── settings/page.tsx    # Settings page
+│   │   ├── hooks/useTranslation.ts
+│   │   ├── components/
+│   │   ├── translations.ts
+│   │   └── globals.css
+│   └── ...
+├── src-tauri/                    # Tauri backend
+│   ├── src/main.rs              # Rust command handlers
+│   ├── Cargo.toml
+│   ├── tauri.conf.json
+│   └── ...
+├── package.json
+└── README.md
+```
+
+## Technology Stack
+
+- **Frontend**: Next.js 16, React, TypeScript, Tailwind CSS
+- **Backend**: Tauri 2, Rust
+- **Clipboard**: Global hotkey handling via tauri-plugin-global-shortcut
+- **Storage**: Browser localStorage for persistence
+- **Internationalization**: Custom translation system
+
+## Building for Production
+
+```bash
+npm run tauri build
+```
+
+The compiled executable will be in `src-tauri/target/release/`.
+
+## License
+
+This project is open source and available under the MIT License.
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues and pull requests.
+
+---
+
+**Developed by**: [DrSenpai](https://github.com/DrSenpai)  
+**Last Updated**: 2026
