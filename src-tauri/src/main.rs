@@ -2,24 +2,42 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use arboard::Clipboard;
-use enigo::{Enigo, Key, KeyboardControllable};
 use tauri::Emitter;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-#[tauri::command]
-fn paste_text(text: String) -> Result<String, String> {
-    if text.trim().is_empty() {
-        return Err("Text darf nicht leer sein".into());
+#[cfg(not(target_os = "windows"))]
+use enigo::{Enigo, Key, KeyboardControllable};
+
+#[cfg(target_os = "windows")]
+fn simulate_paste() {
+    use std::mem::zeroed;
+    use winapi::um::winuser::{INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VK_CONTROL};
+
+    unsafe fn send_key(vk: u16, flags: u32) {
+        let mut input: INPUT = zeroed();
+        input.type_ = INPUT_KEYBOARD;
+        *input.u.ki_mut() = KEYBDINPUT {
+            wVk: vk,
+            wScan: 0,
+            dwFlags: flags,
+            time: 0,
+            dwExtraInfo: 0,
+        };
+        SendInput(1, &mut input, std::mem::size_of::<INPUT>() as i32);
     }
 
-    // Copy text to the system clipboard.
-    let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard error: {}", e))?;
-    clipboard
-        .set_text(text.clone())
-        .map_err(|e| format!("Clipboard error: {}", e))?;
+    unsafe {
+        const VK_V: u16 = 0x56;
 
-    // Simulate a paste shortcut so the text is inserted at the current cursor position.
-    // Uses Ctrl+V on Windows/Linux and ⌘+V on macOS.
+        send_key(VK_CONTROL as u16, 0);
+        send_key(VK_V, 0);
+        send_key(VK_V, KEYEVENTF_KEYUP);
+        send_key(VK_CONTROL as u16, KEYEVENTF_KEYUP);
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn simulate_paste() {
     let mut enigo = Enigo::new();
     let modifier = if cfg!(target_os = "macos") {
         Key::Meta
@@ -30,8 +48,28 @@ fn paste_text(text: String) -> Result<String, String> {
     enigo.key_down(modifier);
     enigo.key_click(Key::Layout('v'));
     enigo.key_up(modifier);
+}
 
-    Ok("Text erfolgreich eingefügt!".into())
+#[tauri::command]
+fn paste_text(text: String, auto_paste: bool) -> Result<String, String> {
+    if text.trim().is_empty() {
+        return Err("Text darf nicht leer sein".into());
+    }
+
+    // Copy text to the system clipboard.
+    let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard error: {}", e))?;
+    clipboard
+        .set_text(text.clone())
+        .map_err(|e| format!("Clipboard error: {}", e))?;
+
+    // If auto_paste mode is enabled, simulate a paste keypress so the text is inserted at
+    // the current cursor position.
+    if auto_paste {
+        simulate_paste();
+        Ok("Text erfolgreich eingefügt!".into())
+    } else {
+        Ok("Text in Zwischenablage kopiert.".into())
+    }
 }
 
 #[tauri::command]
@@ -72,7 +110,7 @@ fn register_hotkeys(app: tauri::AppHandle, hotkey_mode: String) -> Result<(), St
         if let Err(e) = global_shortcut.on_shortcut(shortcut, move |app, _shortcut, _event| {
             let _ = app.emit("paste-preset", preset_key_clone.clone());
         }) {
-            // Log the error but don't fail - hotkeys might already be registered
+            
             println!("Warning: Failed to register shortcut {}: {:?}", shortcut_str, e);
         }
     }
