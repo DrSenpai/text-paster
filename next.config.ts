@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Exportiere als statische Assets statt Server-Side Rendering
+  output: "export",
+  distDir: "out",
 };
 
 export default nextConfig;
