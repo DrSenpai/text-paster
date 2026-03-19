@@ -7,8 +7,10 @@ import { useTranslation } from "../hooks/useTranslation";
 import { Language } from "../translations";
 
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
+const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
 
 type HotkeyMode = "numpad" | "ctrl";
+type PasteMode = "auto" | "clipboard";
 
 const languageLabels = {
     de: "Deutsch",
@@ -19,6 +21,7 @@ export default function SettingsPage() {
     const { t, language, setLanguage } = useTranslation();
     const router = useRouter();
     const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("numpad");
+    const [pasteMode, setPasteMode] = useState<PasteMode>("auto");
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
@@ -26,11 +29,17 @@ export default function SettingsPage() {
         if (storedHotkey) {
             setHotkeyMode(storedHotkey);
         }
+
+        const storedPasteMode = window.localStorage.getItem(STORAGE_KEY_PASTE_MODE) as PasteMode | null;
+        if (storedPasteMode) {
+            setPasteMode(storedPasteMode);
+        }
     }, []);
 
     const saveSettings = () => {
         window.localStorage.setItem("textPaster.language", language);
         window.localStorage.setItem(STORAGE_KEY_HOTKEY, hotkeyMode);
+        window.localStorage.setItem(STORAGE_KEY_PASTE_MODE, pasteMode);
         setSaved(true);
 
         // Register hotkeys
@@ -130,6 +139,37 @@ export default function SettingsPage() {
                         </label>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-300">{hotkeyDescription}</p>
+                </section>
+
+                <section className="space-y-3">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {t("pasteModeSection")}
+                    </h2>
+                    <div className="grid gap-2 md:grid-cols-2">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition hover:border-blue-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-slate-100">
+                            <input
+                                type="radio"
+                                name="pasteMode"
+                                value="auto"
+                                checked={pasteMode === "auto"}
+                                onChange={() => setPasteMode("auto")}
+                                className="h-4 w-4 accent-blue-600"
+                            />
+                            {t("pasteModeAuto")}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition hover:border-blue-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-slate-100">
+                            <input
+                                type="radio"
+                                name="pasteMode"
+                                value="clipboard"
+                                checked={pasteMode === "clipboard"}
+                                onChange={() => setPasteMode("clipboard")}
+                                className="h-4 w-4 accent-blue-600"
+                            />
+                            {t("pasteModeClipboard")}
+                        </label>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{t("pasteModeDescription")}</p>
                 </section>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

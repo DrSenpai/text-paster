@@ -4,18 +4,25 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "./hooks/useTranslation";
 
 type HotkeyMode = "numpad" | "ctrl";
+type PasteMode = "auto" | "clipboard";
 
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
+const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
 
 export default function Home() {
   const { t, language } = useTranslation();
   const [inputs, setInputs] = useState(["", "", "", "", ""]);
   const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("numpad");
+  const [pasteMode, setPasteMode] = useState<PasteMode>("auto");
 
   useEffect(() => {
     const storedHotkey = window.localStorage.getItem(STORAGE_KEY_HOTKEY) as HotkeyMode | null;
     const initialMode = (storedHotkey === "numpad" || storedHotkey === "ctrl") ? storedHotkey : "numpad";
     setHotkeyMode(initialMode);
+
+    const storedPasteMode = window.localStorage.getItem(STORAGE_KEY_PASTE_MODE) as PasteMode | null;
+    const initialPasteMode = storedPasteMode === "clipboard" ? "clipboard" : "auto";
+    setPasteMode(initialPasteMode);
 
     // Load presets from localStorage
     const storedPresets = window.localStorage.getItem("textPaster.presets");
@@ -50,7 +57,10 @@ export default function Home() {
       if (presetIndex >= 0 && presetIndex < inputs.length && inputs[presetIndex].trim()) {
         try {
           const { invoke } = await import("@tauri-apps/api/core");
-          await invoke("paste_text", { text: inputs[presetIndex] });
+          await invoke("paste_text", {
+            text: inputs[presetIndex],
+            autoPaste: pasteMode === "auto",
+          });
         } catch (e) {
           console.error("Failed to paste preset:", e);
         }
@@ -97,7 +107,10 @@ export default function Home() {
 
     console.log("Inputs:", inputs);
 
-    await invoke("paste_text", { text: inputs.join(" | ") });
+    await invoke("paste_text", {
+      text: inputs.join(" | "),
+      autoPaste: pasteMode === "auto",
+    });
   };
 
   return (
@@ -112,7 +125,7 @@ export default function Home() {
               {t("title")}
             </h1>
             <p className="text-md text-slate-600 dark:text-slate-300 font-mono">
-              {t("languageLabel")}: <span className="font-medium font-mono">{language === "de" ? "Deutsch" : "English"}</span> · {t("hotkeysLabel")}: <span className="font-medium font-mono">{hotkeyHint}</span>
+              {t("languageLabel")}: <span className="font-medium font-mono">{language === "de" ? "Deutsch" : "English"}</span> · {t("hotkeysLabel")}: <span className="font-medium font-mono">{hotkeyHint}</span> · {t("pasteModeSection")}: <span className="font-medium font-mono">{pasteMode === "auto" ? t("pasteModeAuto") : t("pasteModeClipboard")}</span>
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-400 font-mono">
               {t("settingsHint")}
