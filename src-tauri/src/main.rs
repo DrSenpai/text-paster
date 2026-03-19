@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use arboard::Clipboard;
+use enigo::{Enigo, Key, KeyboardControllable};
 use tauri::Emitter;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
@@ -10,9 +12,26 @@ fn paste_text(text: String) -> Result<String, String> {
         return Err("Text darf nicht leer sein".into());
     }
 
-    println!("Received: {}", text);
+    // Copy text to the system clipboard.
+    let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard error: {}", e))?;
+    clipboard
+        .set_text(text.clone())
+        .map_err(|e| format!("Clipboard error: {}", e))?;
 
-    Ok("Text erfolgreich verarbeitet!".into())
+    // Simulate a paste shortcut so the text is inserted at the current cursor position.
+    // Uses Ctrl+V on Windows/Linux and ⌘+V on macOS.
+    let mut enigo = Enigo::new();
+    let modifier = if cfg!(target_os = "macos") {
+        Key::Meta
+    } else {
+        Key::Control
+    };
+
+    enigo.key_down(modifier);
+    enigo.key_click(Key::Layout('v'));
+    enigo.key_up(modifier);
+
+    Ok("Text erfolgreich eingefügt!".into())
 }
 
 #[tauri::command]
