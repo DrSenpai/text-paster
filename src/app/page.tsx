@@ -8,6 +8,7 @@ type PasteMode = "auto" | "clipboard";
 
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
 const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
+const STORAGE_KEY_TRAY = "textPaster.minimizeToTray";
 
 export default function Home() {
   const { t, language } = useTranslation();
@@ -24,6 +25,9 @@ export default function Home() {
     const initialPasteMode = storedPasteMode === "clipboard" ? "clipboard" : "auto";
     setPasteMode(initialPasteMode);
 
+    const storedTrayMode = window.localStorage.getItem(STORAGE_KEY_TRAY);
+    const initialTrayEnabled = storedTrayMode === "enabled";
+
     // Load presets from localStorage
     const storedPresets = window.localStorage.getItem("textPaster.presets");
     if (storedPresets) {
@@ -37,13 +41,14 @@ export default function Home() {
       }
     }
 
-    // Register hotkeys once on mount
+    // Register hotkeys and set tray behavior once on mount
     const registerHotkeys = async () => {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("register_hotkeys", { hotkeyMode: initialMode });
+        await invoke("set_minimize_to_tray", { enabled: initialTrayEnabled });
       } catch (e) {
-        console.error("Failed to register hotkeys:", e);
+        console.error("Failed to register hotkeys or set tray behavior:", e);
       }
     };
 

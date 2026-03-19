@@ -29,20 +29,44 @@ export default function SettingsPage() {
 
     useEffect(() => {
         const storedHotkey = window.localStorage.getItem(STORAGE_KEY_HOTKEY) as HotkeyMode | null;
-        if (storedHotkey) {
-            setHotkeyMode(storedHotkey);
-        }
+        const initialHotkey = storedHotkey || "numpad";
+        setHotkeyMode(initialHotkey);
 
         const storedPasteMode = window.localStorage.getItem(STORAGE_KEY_PASTE_MODE) as PasteMode | null;
-        if (storedPasteMode) {
-            setPasteMode(storedPasteMode);
-        }
+        const initialPasteMode = storedPasteMode || "auto";
+        setPasteMode(initialPasteMode);
 
         const storedTrayMode = window.localStorage.getItem(STORAGE_KEY_TRAY) as TrayMode | null;
-        if (storedTrayMode) {
-            setTrayMode(storedTrayMode);
-        }
+        const initialTrayMode = storedTrayMode || "disabled";
+        setTrayMode(initialTrayMode);
+
+        // Apply initial settings
+        const applyInitialSettings = async () => {
+            try {
+                const { invoke } = await import("@tauri-apps/api/core");
+                await invoke("register_hotkeys", { hotkeyMode: initialHotkey });
+                await invoke("set_minimize_to_tray", { enabled: initialTrayMode === "enabled" });
+            } catch (e) {
+                console.error("Failed to apply initial settings:", e);
+            }
+        };
+
+        applyInitialSettings();
     }, []);
+
+    useEffect(() => {
+        const applySettings = async () => {
+            try {
+                const { invoke } = await import("@tauri-apps/api/core");
+                await invoke("register_hotkeys", { hotkeyMode });
+                await invoke("set_minimize_to_tray", { enabled: trayMode === "enabled" });
+            } catch (e) {
+                console.error("Failed to apply settings:", e);
+            }
+        };
+
+        applySettings();
+    }, [hotkeyMode, trayMode]);
 
     const saveSettings = () => {
         window.localStorage.setItem("textPaster.language", language);

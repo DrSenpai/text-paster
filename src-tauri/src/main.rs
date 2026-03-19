@@ -2,52 +2,63 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use arboard::Clipboard;
-use tauri::Emitter;
-use tauri_plugin_global_shortcut::GlobalShortcutExt;
+use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use std::sync::Mutex;
+use tauri::tray::TrayIconBuilder;
+use std::thread;
+use std::time::Duration;
+
+static MINIMIZE_TO_TRAY: Mutex<bool> = Mutex::new(false);
 
 #[cfg(not(target_os = "windows"))]
 use enigo::{Enigo, Key, KeyboardControllable};
 
 #[cfg(target_os = "windows")]
-fn simulate_paste() {
+fn simulate_type(text: &str) {
     use std::mem::zeroed;
-    use winapi::um::winuser::{INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VK_CONTROL};
-
-    unsafe fn send_key(vk: u16, flags: u32) {
-        let mut input: INPUT = zeroed();
-        input.type_ = INPUT_KEYBOARD;
-        *input.u.ki_mut() = KEYBDINPUT {
-            wVk: vk,
-            wScan: 0,
-            dwFlags: flags,
-            time: 0,
-            dwExtraInfo: 0,
-        };
-        SendInput(1, &mut input, std::mem::size_of::<INPUT>() as i32);
-    }
+    use winapi::um::winuser::{
+        INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, SendInput,
+    };
 
     unsafe {
-        const VK_V: u16 = 0x56;
+        for c in text.chars() {
+            // Key down
+            let mut input: INPUT = zeroed();
+            input.type_ = INPUT_KEYBOARD;
+            *input.u.ki_mut() = KEYBDINPUT {
+                wVk: 0,
+                wScan: c as u16,
+                dwFlags: KEYEVENTF_UNICODE,
+                time: 0,
+                dwExtraInfo: 0,
+            };
+            SendInput(1, &mut input, std::mem::size_of::<INPUT>() as i32);
 
-        send_key(VK_CONTROL as u16, 0);
-        send_key(VK_V, 0);
-        send_key(VK_V, KEYEVENTF_KEYUP);
-        send_key(VK_CONTROL as u16, KEYEVENTF_KEYUP);
+            thread::sleep(Duration::from_millis(5));
+
+            // Key up
+            let mut input: INPUT = zeroed();
+            input.type_ = INPUT_KEYBOARD;
+            *input.u.ki_mut() = KEYBDINPUT {
+                wVk: 0,
+                wScan: c as u16,
+                dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                time: 0,
+                dwExtraInfo: 0,
+            };
+            SendInput(1, &mut input, std::mem::size_of::<INPUT>() as i32);
+        }
     }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn simulate_paste() {
+fn simulate_type(text: &str) {
     let mut enigo = Enigo::new();
-    let modifier = if cfg!(target_os = "macos") {
-        Key::Meta
-    } else {
-        Key::Control
-    };
-
-    enigo.key_down(modifier);
-    enigo.key_click(Key::Layout('v'));
-    enigo.key_up(modifier);
+    for c in text.chars() {
+        enigo.key_click(Key::Layout(c));
+        thread::sleep(Duration::from_millis(5));
+    }
 }
 
 #[tauri::command]
@@ -56,16 +67,15 @@ fn paste_text(text: String, auto_paste: bool) -> Result<String, String> {
         return Err("Text darf nicht leer sein".into());
     }
 
-    // Copy text to the system clipboard.
     let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard error: {}", e))?;
+
     clipboard
         .set_text(text.clone())
         .map_err(|e| format!("Clipboard error: {}", e))?;
 
-    // If auto_paste mode is enabled, simulate a paste keypress so the text is inserted at
-    // the current cursor position.
     if auto_paste {
-        simulate_paste();
+        thread::sleep(Duration::from_millis(40));
+        simulate_type(&text);
         Ok("Text erfolgreich eingefügt!".into())
     } else {
         Ok("Text in Zwischenablage kopiert.".into())
@@ -76,7 +86,6 @@ fn paste_text(text: String, auto_paste: bool) -> Result<String, String> {
 fn register_hotkeys(app: tauri::AppHandle, hotkey_mode: String) -> Result<(), String> {
     let global_shortcut = app.global_shortcut();
 
-    // Unregister existing hotkeys first
     let _ = global_shortcut.unregister_all();
 
     let shortcuts = if hotkey_mode == "numpad" {
@@ -105,12 +114,17 @@ fn register_hotkeys(app: tauri::AppHandle, hotkey_mode: String) -> Result<(), St
                 continue;
             }
         };
+
         let preset_key_clone = preset_key.to_string();
 
-        if let Err(e) = global_shortcut.on_shortcut(shortcut, move |app, _shortcut, _event| {
+        if let Err(e) = global_shortcut.on_shortcut(shortcut, move |app, _shortcut, event| {
+            // FIX: verhindert doppeltes Auslösen
+            if event.state() != ShortcutState::Pressed {
+                return;
+            }
+
             let _ = app.emit("paste-preset", preset_key_clone.clone());
         }) {
-            
             println!("Warning: Failed to register shortcut {}: {:?}", shortcut_str, e);
         }
     }
@@ -118,10 +132,50 @@ fn register_hotkeys(app: tauri::AppHandle, hotkey_mode: String) -> Result<(), St
     Ok(())
 }
 
+#[tauri::command]
+fn set_minimize_to_tray(enabled: bool) -> Result<(), String> {
+    *MINIMIZE_TO_TRAY.lock().map_err(|e| format!("Mutex error: {}", e))? = enabled;
+    Ok(())
+}
+
 fn main() {
-  tauri::Builder::default()
-    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-    .invoke_handler(tauri::generate_handler![paste_text, register_hotkeys])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            paste_text,
+            register_hotkeys,
+            set_minimize_to_tray
+        ])
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            let window_clone = window.clone();
+
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap();
+                    if minimize_to_tray {
+                        window_clone.hide().unwrap();
+                        api.prevent_close();
+                    }
+                }
+            });
+
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("Text Paster")
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
