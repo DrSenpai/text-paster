@@ -8,9 +8,11 @@ import { Language } from "../translations";
 
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
 const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
+const STORAGE_KEY_TRAY = "textPaster.minimizeToTray";
 
 type HotkeyMode = "numpad" | "ctrl";
 type PasteMode = "auto" | "clipboard";
+type TrayMode = "enabled" | "disabled";
 
 const languageLabels = {
     de: "Deutsch",
@@ -22,6 +24,7 @@ export default function SettingsPage() {
     const router = useRouter();
     const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("numpad");
     const [pasteMode, setPasteMode] = useState<PasteMode>("auto");
+    const [trayMode, setTrayMode] = useState<TrayMode>("disabled");
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
@@ -34,21 +37,28 @@ export default function SettingsPage() {
         if (storedPasteMode) {
             setPasteMode(storedPasteMode);
         }
+
+        const storedTrayMode = window.localStorage.getItem(STORAGE_KEY_TRAY) as TrayMode | null;
+        if (storedTrayMode) {
+            setTrayMode(storedTrayMode);
+        }
     }, []);
 
     const saveSettings = () => {
         window.localStorage.setItem("textPaster.language", language);
         window.localStorage.setItem(STORAGE_KEY_HOTKEY, hotkeyMode);
         window.localStorage.setItem(STORAGE_KEY_PASTE_MODE, pasteMode);
+        window.localStorage.setItem(STORAGE_KEY_TRAY, trayMode);
         setSaved(true);
 
-        // Register hotkeys
+        // Register hotkeys and update tray behavior
         const registerHotkeys = async () => {
             try {
                 const { invoke } = await import("@tauri-apps/api/core");
                 await invoke("register_hotkeys", { hotkeyMode });
+                await invoke("set_minimize_to_tray", { enabled: trayMode === "enabled" });
             } catch (e) {
-                console.error("Failed to register hotkeys:", e);
+                console.error("Failed to register hotkeys or set tray behavior:", e);
             }
         };
 
@@ -170,6 +180,37 @@ export default function SettingsPage() {
                         </label>
                     </div>
                     <p className="text-sm text-slate-600 dark:text-slate-300">{t("pasteModeDescription")}</p>
+                </section>
+
+                <section className="space-y-3">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {t("traySection")}
+                    </h2>
+                    <div className="grid gap-2 md:grid-cols-2">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition hover:border-blue-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-slate-100">
+                            <input
+                                type="radio"
+                                name="trayMode"
+                                value="enabled"
+                                checked={trayMode === "enabled"}
+                                onChange={() => setTrayMode("enabled")}
+                                className="h-4 w-4 accent-blue-600"
+                            />
+                            {t("trayOptionEnabled")}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm transition hover:border-blue-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-slate-100">
+                            <input
+                                type="radio"
+                                name="trayMode"
+                                value="disabled"
+                                checked={trayMode === "disabled"}
+                                onChange={() => setTrayMode("disabled")}
+                                className="h-4 w-4 accent-blue-600"
+                            />
+                            {t("trayOptionDisabled")}
+                        </label>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{t("trayDescription")}</p>
                 </section>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
