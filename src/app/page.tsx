@@ -1,34 +1,50 @@
+/// Haupt-Seite von Text Paster
+/// Zeigt 5 Text-Input-Felder (Presets) zur Konfiguration und verwaltung von Shortcuts
+/// Unterstützt Hotkey-Triggered Pastes und unterschiedliche Paste-Modi
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "./hooks/useTranslation";
 
+// Definierte Typen für die verschiedenen Konfigurationsmöglichkeiten
 type HotkeyMode = "numpad" | "ctrl";
 type PasteMode = "auto" | "clipboard";
 
+// LocalStorage Keys für Persistierung der Einstellungen
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
 const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
 const STORAGE_KEY_TRAY = "textPaster.minimizeToTray";
 
 export default function Home() {
   const { t, language } = useTranslation();
+
+  // State für die 5 Preset-Eingabefelder
   const [inputs, setInputs] = useState(["", "", "", "", ""]);
+
+  // State für die Hotkey-Konfiguration (Numpad oder Ctrl+1-5)
   const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("numpad");
+
+  // State für den Paste-Modus (Auto-Tippen oder nur Zwischenablage)
   const [pasteMode, setPasteMode] = useState<PasteMode>("auto");
 
+  // Beim Laden: Lade gespeicherte Einstellungen und Presets aus localStorage
   useEffect(() => {
+    // Lade Hotkey-Modus
     const storedHotkey = window.localStorage.getItem(STORAGE_KEY_HOTKEY) as HotkeyMode | null;
     const initialMode = (storedHotkey === "numpad" || storedHotkey === "ctrl") ? storedHotkey : "numpad";
     setHotkeyMode(initialMode);
 
+    // Lade Paste-Modus
     const storedPasteMode = window.localStorage.getItem(STORAGE_KEY_PASTE_MODE) as PasteMode | null;
     const initialPasteMode = storedPasteMode === "clipboard" ? "clipboard" : "auto";
     setPasteMode(initialPasteMode);
 
+    // Lade minimizeToTray Einstellung und wende sie auf Rust-Seite an
     const storedTrayMode = window.localStorage.getItem(STORAGE_KEY_TRAY);
     const initialTrayEnabled = storedTrayMode === "enabled";
 
-    // Load presets from localStorage
+    // Lade gespeicherte Presets aus localStorage
     const storedPresets = window.localStorage.getItem("textPaster.presets");
     if (storedPresets) {
       try {
@@ -41,7 +57,7 @@ export default function Home() {
       }
     }
 
-    // Register hotkeys and set tray behavior once on mount
+    // Registriere Hotkeys beim App-Start und wende Tray-Einstellung an
     const registerHotkeys = async () => {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
@@ -55,10 +71,15 @@ export default function Home() {
     registerHotkeys();
   }, []);
 
+  // Listener für Hotkey-Events vom Backend
+  // Wenn ein registrierter Hotkey (Numpad oder Ctrl+1-5) gedrückt wird,
+  // wird das entsprechende Preset automatisch eingefügt
   useEffect(() => {
-    // Listen for paste-preset events
     const handlePastePreset = async (event: any) => {
+      // Extrahiere die Preset-Nummer aus dem Event (z.B. "preset1" -> 0)
       const presetIndex = parseInt(event.payload.replace("preset", "")) - 1;
+
+      // Validiere und füge das Preset ein
       if (presetIndex >= 0 && presetIndex < inputs.length && inputs[presetIndex].trim()) {
         try {
           const { invoke } = await import("@tauri-apps/api/core");
@@ -85,26 +106,32 @@ export default function Home() {
     let unlisten: (() => void) | undefined;
     setupListener().then((u) => (unlisten = u));
 
+    // Cleanup: Entferne Listener beim Unmount
     return () => {
       if (unlisten) unlisten();
     };
   }, [inputs]);
 
+  // Generiere die Hotkey-Hinweis-Beschreibung für die UI
   const hotkeyHint = useMemo(() => {
     return hotkeyMode === "numpad"
       ? t("numpadOption")
       : t("ctrlOption");
   }, [hotkeyMode, t]);
 
+  // Handler für Änderungen an den Presets
+  // Aktualisiert den State und speichert die Presets in localStorage
   const handleChange = (index: number, value: string) => {
     const newInputs = [...inputs];
     newInputs[index] = value;
     setInputs(newInputs);
 
-    // Save to localStorage
+    // Persistiere Presets
     window.localStorage.setItem("textPaster.presets", JSON.stringify(newInputs));
   };
 
+  // Handler für den "Save" Button
+  // Fügt alle Presets zusammen in das Clipboard ein (getrennt durch |)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -112,6 +139,7 @@ export default function Home() {
 
     console.log("Inputs:", inputs);
 
+    // Verbinde alle Presets mit " | " und füge sie ein
     await invoke("paste_text", {
       text: inputs.join(" | "),
       autoPaste: pasteMode === "auto",

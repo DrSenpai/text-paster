@@ -1,4 +1,11 @@
-﻿/* eslint react-hooks/set-state-in-effect: "off" */
+﻿/// Settings-Seite für Text Paster
+/// Ermöglicht Benutzern, verschiedene Einstellungen zu konfigurieren:
+/// - Sprache (Deutsch/Englisch)
+/// - Hotkey-Modus (Numpad oder Ctrl+1-5)
+/// - Paste-Modus (Auto-Tippen oder nur Zwischenablage)
+/// - Minimize to Tray Verhalten
+
+/* eslint react-hooks/set-state-in-effect: "off" */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,14 +13,17 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "../hooks/useTranslation";
 import { Language } from "../translations";
 
+// LocalStorage Keys
 const STORAGE_KEY_HOTKEY = "textPaster.hotkeyMode";
 const STORAGE_KEY_PASTE_MODE = "textPaster.pasteMode";
 const STORAGE_KEY_TRAY = "textPaster.minimizeToTray";
 
+// Definierte Typen
 type HotkeyMode = "numpad" | "ctrl";
 type PasteMode = "auto" | "clipboard";
 type TrayMode = "enabled" | "disabled";
 
+// Labels für Sprachen-Radio-Buttons
 const languageLabels = {
     de: "Deutsch",
     en: "English",
@@ -22,11 +32,16 @@ const languageLabels = {
 export default function SettingsPage() {
     const { t, language, setLanguage } = useTranslation();
     const router = useRouter();
+
+    // State für die verschiedenen Einstellungen
     const [hotkeyMode, setHotkeyMode] = useState<HotkeyMode>("numpad");
     const [pasteMode, setPasteMode] = useState<PasteMode>("auto");
     const [trayMode, setTrayMode] = useState<TrayMode>("disabled");
+
+    // State für "Gespeichert" Nachricht
     const [saved, setSaved] = useState(false);
 
+    // Beim Laden: Lade alle Einstellungen aus localStorage
     useEffect(() => {
         const storedHotkey = window.localStorage.getItem(STORAGE_KEY_HOTKEY) as HotkeyMode | null;
         const initialHotkey = storedHotkey || "numpad";
@@ -40,7 +55,7 @@ export default function SettingsPage() {
         const initialTrayMode = storedTrayMode || "disabled";
         setTrayMode(initialTrayMode);
 
-        // Apply initial settings
+        // Wende initial geladene Einstellungen auf der Rust-Seite an
         const applyInitialSettings = async () => {
             try {
                 const { invoke } = await import("@tauri-apps/api/core");
@@ -54,6 +69,7 @@ export default function SettingsPage() {
         applyInitialSettings();
     }, []);
 
+    // Wenn sich Hotkey oder Tray Einstellungen ändern, wende die Änderungen auf der Rust-Seite an
     useEffect(() => {
         const applySettings = async () => {
             try {
@@ -68,6 +84,7 @@ export default function SettingsPage() {
         applySettings();
     }, [hotkeyMode, trayMode]);
 
+    // Handler zum Speichern aller Einstellungen in localStorage
     const saveSettings = () => {
         window.localStorage.setItem("textPaster.language", language);
         window.localStorage.setItem(STORAGE_KEY_HOTKEY, hotkeyMode);
@@ -75,7 +92,7 @@ export default function SettingsPage() {
         window.localStorage.setItem(STORAGE_KEY_TRAY, trayMode);
         setSaved(true);
 
-        // Register hotkeys and update tray behavior
+        // Wende die Einstellungen auf der Rust-Seite an
         const registerHotkeys = async () => {
             try {
                 const { invoke } = await import("@tauri-apps/api/core");
@@ -88,11 +105,14 @@ export default function SettingsPage() {
 
         registerHotkeys();
 
+        // Verstecke die "Gespeichert" Nachricht nach 2 Sekunden
         window.setTimeout(() => setSaved(false), 2000);
     };
 
+    // Navigiere zurück zur Hauptseite
     const goBack = () => router.push("/");
 
+    // Generiere die Hotkey-Beschreibung basierend auf dem Modus
     const hotkeyDescription = useMemo(() => {
         return hotkeyMode === "numpad"
             ? t("hotkeyDescriptionNumpad")
