@@ -1,0 +1,11 @@
+﻿cargo :    Compiling app v0.1.0 
+(C:\Users\jakob\Documents\Coding\text-paster\src-tauri)
+In Zeile:1 Zeichen:1
++ cargo run 2>&1 | Out-File -FilePath cargo-error.txt -Encoding utf8; G ...
++ ~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling ap...ster\src-tauri) 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.71s
+     Running `target\debug\app.exe`

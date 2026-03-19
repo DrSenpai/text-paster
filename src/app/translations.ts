@@ -1,0 +1,43 @@
+export const translations = {
+    de: {
+        title: "Text Paster",
+        languageLabel: "Sprache",
+        hotkeysLabel: "Hotkeys",
+        settingsHint: "Einstellbar über das Zahnrad unten rechts",
+        saveButton: "Strings speichern",
+        presetPlaceholder: "Voreinstellung",
+        settingsTitle: "Einstellungen",
+        settingsDescription: "Wähle Sprache & Hotkey-Modus für die App.",
+        backButton: "Zurück",
+        languageSection: "Sprache",
+        hotkeySection: "Hotkey-Modus",
+        numpadOption: "Numpad 1‑5",
+        ctrlOption: "Strg+1‑5",
+        hotkeyDescriptionNumpad: "NumPad 1‑5 (z. B. NumPad1 zum Einfügen von Preset 1)",
+        hotkeyDescriptionCtrl: "Ctrl+1‑5 (z. B. Strg+1 zum Einfügen von Preset 1)",
+        saveSettings: "Einstellungen speichern",
+        savedMessage: "Einstellungen gespeichert",
+    },
+    en: {
+        title: "Text Paster",
+        languageLabel: "Language",
+        hotkeysLabel: "Hotkeys",
+        settingsHint: "Adjustable via gear icon bottom right",
+        saveButton: "Save Strings",
+        presetPlaceholder: "Preset",
+        settingsTitle: "Settings",
+        settingsDescription: "Choose language & hotkey mode for the app.",
+        backButton: "Go back",
+        languageSection: "Language",
+        hotkeySection: "Hotkey Mode",
+        numpadOption: "Numpad 1‑5",
+        ctrlOption: "Ctrl+1‑5",
+        hotkeyDescriptionNumpad: "Numpad 1‑5 (e.g. Numpad1 to paste Preset 1)",
+        hotkeyDescriptionCtrl: "Ctrl+1‑5 (e.g. Ctrl+1 to paste Preset 1)",
+        saveSettings: "Save Settings",
+        savedMessage: "Settings Saved",
+    },
+};
+
+export type Language = "de" | "en";
+export type TranslationKey = keyof typeof translations.de;
